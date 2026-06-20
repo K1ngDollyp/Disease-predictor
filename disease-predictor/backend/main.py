@@ -1,28 +1,26 @@
 import os
 import pickle
 import numpy as np
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from typing import List
 from dotenv import load_dotenv
 
-# Load environment variables
+# Load env variables from .env file
 load_dotenv()
 
-# Initialize FastAPI app
-app = FastAPI(
-    title="Disease Predictor API",
-    description="API to predict diseases based on selected symptoms using a trained ML model.",
-    version="1.0.0"
-)
+app = FastAPI()
 
-# Enable CORS for frontend communication
-# Allow localhost:5173 for Vite Dev server by default, or read from environment
-origins = os.getenv(
-    "ALLOWED_ORIGINS", 
-    "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,http://localhost:5175,http://127.0.0.1:5175"
-).split(",")
+# Enable CORS so React can connect
+origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5174",
+    "http://localhost:5175",
+    "http://127.0.0.1:5175"
+]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -31,69 +29,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.get("/")
-def read_root():
-    return {
-        "message": "Welcome to the Disease Predictor API.",
-        "endpoints": {
-            "predict": "POST /predict",
-            "symptoms": "GET /symptoms",
-            "documentation": "/docs"
-        }
-    }
+# Load the pickle models directly on startup
+# We use simple relative paths to find them in the model folder
+try:
+    print("Loading models from pickle files...")
+    model = pickle.load(open("../model/model.pkl", "rb"))
+    label_encoder = pickle.load(open("../model/label_encoder.pkl", "rb"))
+    symptoms_list = pickle.load(open("../model/symptoms.pkl", "rb"))
+    print("Models loaded successfully!")
+except Exception as e:
+    print("Error loading models:", e)
+    # Try current directory path if running directly in the model directory
+    model = pickle.load(open("model.pkl", "rb"))
+    label_encoder = pickle.load(open("label_encoder.pkl", "rb"))
+    symptoms_list = pickle.load(open("symptoms.pkl", "rb"))
 
-# Global variables for model, label encoder, and symptom headers
-model = None
-label_encoder = None
-symptoms_list = []
-symptom_to_idx = {}
-
-@app.on_event("startup")
-def load_ml_assets():
-    """Load pickled model, label encoder, and symptoms list on startup."""
-    global model, label_encoder, symptoms_list, symptom_to_idx
-    
-    # Try multiple paths to find assets (running from backend/ or root folder)
-    base_dirs = [
-        os.path.join(os.path.dirname(__file__), "..", "model"),
-        os.path.join(os.getcwd(), "model"),
-        os.path.join(os.getcwd(), "disease-predictor", "model")
-    ]
-    
-    model_path = None
-    encoder_path = None
-    symptoms_path = None
-    
-    for d in base_dirs:
-        m_p = os.path.join(d, "model.pkl")
-        e_p = os.path.join(d, "label_encoder.pkl")
-        s_p = os.path.join(d, "symptoms.pkl")
-        if os.path.exists(m_p) and os.path.exists(e_p) and os.path.exists(s_p):
-            model_path = m_p
-            encoder_path = e_p
-            symptoms_path = s_p
-            break
-            
-    if not model_path:
-        raise RuntimeError("ML pickle assets (model.pkl, label_encoder.pkl, symptoms.pkl) could not be found.")
-        
-    print(f"Loading model from {model_path}...")
-    with open(model_path, 'rb') as f:
-        model = pickle.load(f)
-        
-    print(f"Loading label encoder from {encoder_path}...")
-    with open(encoder_path, 'rb') as f:
-        label_encoder = pickle.load(f)
-        
-    print(f"Loading symptoms list from {symptoms_path}...")
-    with open(symptoms_path, 'rb') as f:
-        symptoms_list = pickle.load(f)
-        
-    # Map symptom names to indices for fast lookup
-    symptom_to_idx = {symptom: idx for idx, symptom in enumerate(symptoms_list)}
-    print(f"Loaded {len(symptoms_list)} symptoms and {len(label_encoder.classes_)} disease classes.")
-
-# Dictionary containing descriptions/definitions for all 41 diseases in the dataset
+# Disease descriptions dictionary
 DISEASE_DEFINITIONS = {
     "Fungal infection": "An inflammatory skin condition caused by a fungus, typically leading to itching, redness, and scaling.",
     "Allergy": "An immune system reaction to a foreign substance (allergen) that is typically harmless to most people.",
@@ -117,7 +68,7 @@ DISEASE_DEFINITIONS = {
     "hepatitis A": "A highly contagious, food/water-borne liver infection caused by the hepatitis A virus.",
     "Hepatitis B": "A serious liver infection caused by the hepatitis B virus, spread through contact with infectious body fluids.",
     "Hepatitis C": "An infectious liver disease caused by the hepatitis C virus, primarily spread through blood-to-blood contact.",
-    "Hepatitis D": "A liver disease caused by the hepatitis D virus, which only occurs in people who are already infected with Hepatitis B.",
+    "Hepatitis D": "A liver disease caused by the hepatitis D virus, which only occurs in people who are also infected with Hepatitis B.",
     "Hepatitis E": "A liver infection caused by the hepatitis E virus, usually self-limiting and transmitted through contaminated water.",
     "Alcoholic hepatitis": "Liver inflammation caused by drinking excessive amounts of alcohol over a long period.",
     "Tuberculosis": "A potentially serious infectious bacterial disease that mainly affects the lungs, spread through airborne droplets.",
@@ -138,13 +89,9 @@ DISEASE_DEFINITIONS = {
     "Impetigo": "A highly contagious bacterial skin infection that causes red sores, particularly on the face.",
 }
 
-# Define Request and Response Models
+# Request and Response schemas
 class PredictRequest(BaseModel):
-    symptoms: List[str] = Field(
-        ..., 
-        description="List of symptom names selected by the user",
-        example=["itching", "skin_rash", "nodal_skin_eruptions"]
-    )
+    symptoms: List[str]
 
 class DiseaseConfidence(BaseModel):
     disease: str
@@ -156,91 +103,65 @@ class PredictResponse(BaseModel):
     description: str
     top_5: List[DiseaseConfidence]
 
-@app.post("/predict", response_model=PredictResponse, status_code=status.HTTP_200_OK)
-def predict_disease(request: PredictRequest):
-    """
-    Predict the most likely disease based on input symptoms.
-    
-    - Accepts a list of symptom strings
-    - Maps them to a 132-length binary array matching the ML model's trained columns
-    - Runs prediction and returns the top predicted class and the top 5 options with confidence scores.
-    """
-    if not model or not label_encoder or not symptoms_list:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, 
-            detail="Machine learning model is not loaded."
-        )
-        
-    if not request.symptoms:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="At least one symptom must be selected."
-        )
-        
-    # Construct binary feature vector
-    # 0 = symptom absent, 1 = present
-    feature_vector = np.zeros(len(symptoms_list))
-    
-    invalid_symptoms = []
-    for symptom in request.symptoms:
-        if symptom in symptom_to_idx:
-            feature_vector[symptom_to_idx[symptom]] = 1
-        else:
-            invalid_symptoms.append(symptom)
-            
-    # If all input symptoms are invalid and none matched
-    if len(invalid_symptoms) == len(request.symptoms):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"None of the provided symptoms are valid. Invalid: {invalid_symptoms}"
-        )
+@app.get("/")
+def home():
+    return {"message": "API is working!"}
 
-    # Reshape for scikit-learn model input (1, 132)
-    feature_vector = feature_vector.reshape(1, -1)
-    
-    try:
-        # Get probability distribution across all 42 classes
-        probabilities = model.predict_proba(feature_vector)[0]
-        
-        # Sort indices by probability in descending order
-        top_indices = np.argsort(probabilities)[::-1]
-        
-        # Build top 5 list
-        top_5_list = []
-        for idx in top_indices[:5]:
-            disease_name = label_encoder.classes_[idx]
-            confidence = float(probabilities[idx])
-            top_5_list.append(DiseaseConfidence(disease=disease_name, confidence=confidence))
-            
-        # Primary prediction is the top 1
-        primary_disease = top_5_list[0].disease
-        primary_confidence = top_5_list[0].confidence
-        
-        # Get description
-        description = DISEASE_DEFINITIONS.get(
-            primary_disease,
-            "No definition available for this disease."
-        )
-        
-        return PredictResponse(
-            prediction=primary_disease,
-            confidence=primary_confidence,
-            description=description,
-            top_5=top_5_list
-        )
-        
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error running prediction model: {str(e)}"
-        )
-
-@app.get("/symptoms", response_model=List[str])
-def get_symptoms_list():
-    """Retrieve the full list of 132 valid symptom names."""
-    if not symptoms_list:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, 
-            detail="Symptoms list is not loaded."
-        )
+@app.get("/symptoms")
+def get_symptoms():
+    # Just return the symptoms list we loaded
     return symptoms_list
+
+@app.post("/predict", response_model=PredictResponse)
+def predict(data: PredictRequest):
+    # check if we got symptoms
+    if not data.symptoms:
+        raise HTTPException(status_code=400, detail="Please select at least one symptom")
+
+    # Create the 132-length 0/1 array
+    input_vector = []
+    for symptom in symptoms_list:
+        if symptom in data.symptoms:
+            input_vector.append(1)
+        else:
+            input_vector.append(0)
+
+    # Convert to numpy array and reshape for prediction
+    final_input = np.array(input_vector).reshape(1, -1)
+
+    try:
+        # Get probability scores for all classes
+        probabilities = model.predict_proba(final_input)[0]
+        diseases = label_encoder.classes_
+
+        # Combine diseases and scores in a list
+        all_predictions = []
+        for i in range(len(diseases)):
+            all_predictions.append({
+                "disease": diseases[i],
+                "confidence": float(probabilities[i])
+            })
+
+        # Sort the predictions list by confidence descending
+        # standard python sort is easier than np.argsort
+        all_predictions.sort(key=lambda x: x["confidence"], reverse=True)
+
+        # Get top 5 predictions
+        top_5 = all_predictions[:5]
+
+        # Get prediction and confidence
+        prediction_disease = top_5[0]["disease"]
+        prediction_confidence = top_5[0]["confidence"]
+
+        # Get description
+        description = DISEASE_DEFINITIONS.get(prediction_disease, "No definition found.")
+
+        # Return response matching the schema
+        return {
+            "prediction": prediction_disease,
+            "confidence": prediction_confidence,
+            "description": description,
+            "top_5": top_5
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Prediction error: {str(e)}")

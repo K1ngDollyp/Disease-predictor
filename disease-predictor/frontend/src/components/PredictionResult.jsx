@@ -1,98 +1,82 @@
 import React from 'react';
-import { ShieldCheck, Percent, Award, AlertCircle } from 'lucide-react';
 
 export default function PredictionResult({ result }) {
+  // If we don't have results yet, don't show anything
   if (!result) return null;
 
   const { prediction, confidence, description, top_5 } = result;
-  const primaryConfidencePercent = (confidence * 100).toFixed(1);
+  
+  // Convert 0.32 to 32.0%
+  const confidencePercent = (confidence * 100).toFixed(1);
 
   return (
-    <div className="w-full bg-slate-800/50 border border-slate-700/80 rounded-2xl p-6 md:p-8 backdrop-blur-md shadow-2xl space-y-8 animate-fadeIn">
-      {/* Header */}
-      <div className="flex items-center gap-3 pb-4 border-b border-slate-700/50">
-        <ShieldCheck className="h-6 w-6 text-emerald-400" />
-        <h2 className="text-xl font-bold text-slate-100">Prediction Results</h2>
+    <div className="w-full bg-slate-800 border border-slate-700 rounded-lg p-6 space-y-6 shadow-md">
+      
+      {/* Title */}
+      <div className="pb-3 border-b border-slate-700">
+        <h3 className="text-lg font-bold text-slate-100">Prediction Results</h3>
       </div>
 
-      {/* Primary Prediction */}
-      <div className="space-y-4">
-        <span className="text-xs font-semibold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
-          Primary Diagnosis
+      {/* Main prognosis prediction */}
+      <div className="space-y-3">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded border border-emerald-500/20">
+          Main Diagnosis
         </span>
-        <h3 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight mt-2">
+        <h4 className="text-xl font-bold text-white mt-1">
           {prediction}
-        </h3>
+        </h4>
         
+        {/* Description / Definition */}
         {description && (
-          <p className="text-sm text-slate-300 leading-relaxed bg-slate-900/40 p-3.5 rounded-xl border border-slate-850">
+          <p className="text-xs text-slate-300 bg-slate-900/50 p-3 rounded-lg border border-slate-700/50 leading-relaxed">
             {description}
           </p>
         )}
         
-        {/* Confidence Progress Bar */}
-        <div className="space-y-2">
-          <div className="flex justify-between items-center text-sm">
-            <span className="text-slate-400 font-medium">Confidence Score</span>
-            <span className="text-emerald-400 font-bold flex items-center gap-0.5">
-              {primaryConfidencePercent} <Percent className="h-3 w-3" />
-            </span>
+        {/* Progress bar showing confidence */}
+        <div className="space-y-1">
+          <div className="flex justify-between text-xs text-slate-400">
+            <span>Confidence</span>
+            <span className="font-semibold text-emerald-400">{confidencePercent}%</span>
           </div>
-          <div className="w-full bg-slate-700/50 rounded-full h-3 overflow-hidden">
+          <div className="w-full bg-slate-700 rounded-full h-2">
             <div 
-              className="bg-emerald-500 h-full rounded-full transition-all duration-1000 ease-out"
-              style={{ width: `${primaryConfidencePercent}%` }}
+              className="bg-emerald-500 h-full rounded-full"
+              style={{ width: `${confidencePercent}%` }}
             />
           </div>
         </div>
       </div>
 
-      {/* Top 5 Likely Diseases */}
-      <div className="space-y-4 pt-4 border-t border-slate-700/50">
-        <h4 className="text-sm font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-2">
-          <Award className="h-4 w-4 text-brand-400" />
-          Top 5 Most Likely Diseases
-        </h4>
+      {/* Top 5 list */}
+      <div className="pt-4 border-t border-slate-700 space-y-3">
+        <h5 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+          Top 5 Likely Diseases
+        </h5>
         
-        <div className="space-y-3">
+        <div className="space-y-2">
           {top_5 && top_5.map((item, index) => {
             const pct = (item.confidence * 100).toFixed(1);
             return (
               <div 
                 key={item.disease} 
-                className="flex items-center justify-between p-3.5 bg-slate-800 border border-slate-700/60 rounded-xl hover:border-slate-600 transition-colors"
+                className="flex items-center justify-between p-2.5 bg-slate-900/30 border border-slate-700/50 rounded-lg text-xs"
               >
-                <div className="flex items-center gap-3">
-                  <span className={`flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
-                    index === 0 
-                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
-                      : 'bg-slate-700 text-slate-300'
-                  }`}>
-                    {index + 1}
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-400 font-bold">
+                    {index + 1}.
                   </span>
-                  <span className="font-semibold text-slate-200 text-sm md:text-base">
+                  <span className="text-slate-200 font-medium">
                     {item.disease}
                   </span>
                 </div>
-                <div className="text-right">
-                  <span className={`font-bold text-sm ${
-                    index === 0 ? 'text-emerald-400' : 'text-slate-300'
-                  }`}>
-                    {pct}%
-                  </span>
-                </div>
+                <span className="text-emerald-400 font-semibold">
+                  {pct}%
+                </span>
               </div>
             );
           })}
         </div>
-      </div>
-      
-      {/* Information Warning */}
-      <div className="flex items-start gap-2.5 p-3.5 bg-sky-950/20 border border-sky-800/30 rounded-xl">
-        <AlertCircle className="h-5 w-5 text-sky-400 shrink-0 mt-0.5" />
-        <p className="text-xs text-sky-300/80 leading-normal">
-          AI predictions are based on statistical training data. If you are experiencing severe symptoms, please visit a doctor or seek immediate emergency care.
-        </p>
       </div>
     </div>
   );
