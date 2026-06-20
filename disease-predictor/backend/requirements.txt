@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+scikit-learn
+pandas
+numpy
+python-dotenv
+# pickle5 is requested by the prompt, though standard pickle is built-in
+pickle5; python_version < '3.8'
