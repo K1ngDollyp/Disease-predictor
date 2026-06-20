@@ -4,7 +4,7 @@ import { ShieldCheck, Percent, Award, AlertCircle } from 'lucide-react';
 export default function PredictionResult({ result }) {
   if (!result) return null;
 
-  const { prediction, confidence, top_3 } = result;
+  const { prediction, confidence, description, top_3 } = result;
   const primaryConfidencePercent = (confidence * 100).toFixed(1);
 
   return (
@@ -23,6 +23,12 @@ export default function PredictionResult({ result }) {
         <h3 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight mt-2">
           {prediction}
         </h3>
+        
+        {description && (
+          <p className="text-sm text-slate-300 leading-relaxed bg-slate-900/40 p-3.5 rounded-xl border border-slate-850">
+            {description}
+          </p>
+        )}
         
         {/* Confidence Progress Bar */}
         <div className="space-y-2">
