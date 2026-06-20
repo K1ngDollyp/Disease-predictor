@@ -30,19 +30,22 @@ app.add_middleware(
 )
 
 # Load the pickle models directly on startup
-# We use simple relative paths to find them in the model folder
+# Helper to get files in the same directory as main.py
+dir_path = os.path.dirname(__file__)
+
 try:
     print("Loading models from pickle files...")
-    model = pickle.load(open("../model/model.pkl", "rb"))
-    label_encoder = pickle.load(open("../model/label_encoder.pkl", "rb"))
-    symptoms_list = pickle.load(open("../model/symptoms.pkl", "rb"))
-    print("Models loaded successfully!")
+    # First try local directory (best for Vercel deployment)
+    model = pickle.load(open(os.path.join(dir_path, "model.pkl"), "rb"))
+    label_encoder = pickle.load(open(os.path.join(dir_path, "label_encoder.pkl"), "rb"))
+    symptoms_list = pickle.load(open(os.path.join(dir_path, "symptoms.pkl"), "rb"))
+    print("Models loaded successfully from local directory!")
 except Exception as e:
-    print("Error loading models:", e)
-    # Try current directory path if running directly in the model directory
-    model = pickle.load(open("model.pkl", "rb"))
-    label_encoder = pickle.load(open("label_encoder.pkl", "rb"))
-    symptoms_list = pickle.load(open("symptoms.pkl", "rb"))
+    print("Local load failed, trying relative path:", e)
+    # Try relative path (fallback for local dev if not copied)
+    model = pickle.load(open(os.path.join(dir_path, "../model/model.pkl"), "rb"))
+    label_encoder = pickle.load(open(os.path.join(dir_path, "../model/label_encoder.pkl"), "rb"))
+    symptoms_list = pickle.load(open(os.path.join(dir_path, "../model/symptoms.pkl"), "rb"))
 
 # Disease descriptions dictionary
 DISEASE_DEFINITIONS = {
