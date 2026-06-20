@@ -21,6 +21,12 @@ origins = [
     "http://localhost:5175",
     "http://127.0.0.1:5175"
 ]
+
+# Read extra origins from environment variable if it exists
+env_origins = os.getenv("ALLOWED_ORIGINS")
+if env_origins:
+    for org in env_origins.split(","):
+        origins.append(org.strip())
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
