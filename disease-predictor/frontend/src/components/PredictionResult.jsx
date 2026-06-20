@@ -4,7 +4,7 @@ import { ShieldCheck, Percent, Award, AlertCircle } from 'lucide-react';
 export default function PredictionResult({ result }) {
   if (!result) return null;
 
-  const { prediction, confidence, description, top_3 } = result;
+  const { prediction, confidence, description, top_5 } = result;
   const primaryConfidencePercent = (confidence * 100).toFixed(1);
 
   return (
@@ -47,15 +47,15 @@ export default function PredictionResult({ result }) {
         </div>
       </div>
 
-      {/* Top 3 Likely Diseases */}
+      {/* Top 5 Likely Diseases */}
       <div className="space-y-4 pt-4 border-t border-slate-700/50">
         <h4 className="text-sm font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-2">
           <Award className="h-4 w-4 text-brand-400" />
-          Top 3 Most Likely Diseases
+          Top 5 Most Likely Diseases
         </h4>
         
         <div className="space-y-3">
-          {top_3.map((item, index) => {
+          {top_5 && top_5.map((item, index) => {
             const pct = (item.confidence * 100).toFixed(1);
             return (
               <div 

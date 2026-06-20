@@ -154,7 +154,7 @@ class PredictResponse(BaseModel):
     prediction: str
     confidence: float
     description: str
-    top_3: List[DiseaseConfidence]
+    top_5: List[DiseaseConfidence]
 
 @app.post("/predict", response_model=PredictResponse, status_code=status.HTTP_200_OK)
 def predict_disease(request: PredictRequest):
@@ -163,7 +163,7 @@ def predict_disease(request: PredictRequest):
     
     - Accepts a list of symptom strings
     - Maps them to a 132-length binary array matching the ML model's trained columns
-    - Runs prediction and returns the top predicted class and the top 3 options with confidence scores.
+    - Runs prediction and returns the top predicted class and the top 5 options with confidence scores.
     """
     if not model or not label_encoder or not symptoms_list:
         raise HTTPException(
@@ -205,16 +205,16 @@ def predict_disease(request: PredictRequest):
         # Sort indices by probability in descending order
         top_indices = np.argsort(probabilities)[::-1]
         
-        # Build top 3 list
-        top_3_list = []
-        for idx in top_indices[:3]:
+        # Build top 5 list
+        top_5_list = []
+        for idx in top_indices[:5]:
             disease_name = label_encoder.classes_[idx]
             confidence = float(probabilities[idx])
-            top_3_list.append(DiseaseConfidence(disease=disease_name, confidence=confidence))
+            top_5_list.append(DiseaseConfidence(disease=disease_name, confidence=confidence))
             
         # Primary prediction is the top 1
-        primary_disease = top_3_list[0].disease
-        primary_confidence = top_3_list[0].confidence
+        primary_disease = top_5_list[0].disease
+        primary_confidence = top_5_list[0].confidence
         
         # Get description
         description = DISEASE_DEFINITIONS.get(
@@ -226,7 +226,7 @@ def predict_disease(request: PredictRequest):
             prediction=primary_disease,
             confidence=primary_confidence,
             description=description,
-            top_3=top_3_list
+            top_5=top_5_list
         )
         
     except Exception as e:
