@@ -35,7 +35,7 @@ export default function PredictionResult({ result }) {
           <div className="flex justify-between items-center text-sm">
             <span className="text-slate-400 font-medium">Confidence Score</span>
             <span className="text-emerald-400 font-bold flex items-center gap-0.5">
-              {primaryConfidencePercent}% <Percent className="h-3 w-3" />
+              {primaryConfidencePercent} <Percent className="h-3 w-3" />
             </span>
           </div>
           <div className="w-full bg-slate-700/50 rounded-full h-3 overflow-hidden">
