@@ -3,7 +3,7 @@ import SymptomSelector from './components/SymptomSelector';
 import PredictionResult from './components/PredictionResult';
 
 // Fallback port 8080 used for the API
-const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8080';
+const API_URL = import.meta.env.VITE_API_URL || 'https://disease-predictor-backend-azure.vercel.app';
 
 export default function App() {
   const [availableSymptoms, setAvailableSymptoms] = useState([]);
