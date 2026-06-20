@@ -19,7 +19,10 @@ app = FastAPI(
 
 # Enable CORS for frontend communication
 # Allow localhost:5173 for Vite Dev server by default, or read from environment
-origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",")
+origins = os.getenv(
+    "ALLOWED_ORIGINS", 
+    "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,http://localhost:5175,http://127.0.0.1:5175"
+).split(",")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -27,6 +30,17 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.get("/")
+def read_root():
+    return {
+        "message": "Welcome to the Disease Predictor API.",
+        "endpoints": {
+            "predict": "POST /predict",
+            "symptoms": "GET /symptoms",
+            "documentation": "/docs"
+        }
+    }
 
 # Global variables for model, label encoder, and symptom headers
 model = None
